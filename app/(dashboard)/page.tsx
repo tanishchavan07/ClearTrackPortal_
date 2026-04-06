@@ -18,6 +18,10 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // PROBLEM 3 FIX - Client dashboard role tracing
+    if (user) {
+      console.log('Dashboard Page - User ID:', user.id, 'Role:', user.role)
+    }
     const fetchProjects = async () => {
       if (!user?.id) return
       

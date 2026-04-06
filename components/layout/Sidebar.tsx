@@ -27,7 +27,8 @@ export function Sidebar() {
     { name: 'Clients', href: '/admin/clients', icon: Users },
   ]
 
-  const navLinks = user?.role === 'client' ? clientLinks : adminLinks
+  const userRole = user?.role?.toLowerCase()
+  const navLinks = (userRole === 'admin' || userRole === 'team') ? adminLinks : clientLinks
 
   return (
     <aside className="hidden h-screen w-60 flex-col border-r border-gray-100 bg-white md:flex">

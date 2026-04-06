@@ -70,13 +70,29 @@ export function ProjectForm({ initialData, isEditing, onSuccess }: ProjectFormPr
       const { data: userData } = await supabase.auth.getUser()
       if (!userData?.user) throw new Error('Not authenticated')
 
+      // Proactive check: Does this client already exist in our users table?
+      let clientId = null
+      if (formData.clientEmail) {
+        const { data: existingUser } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', formData.clientEmail.toLowerCase().trim())
+          .maybeSingle()
+        
+        if (existingUser) {
+          clientId = existingUser.id
+          console.log('Project Form: Found existing client with ID:', clientId)
+        }
+      }
+
       const projectPayload = {
         name: formData.name,
         description: formData.description,
         status: formData.status,
         health: formData.health,
         progress: formData.progress,
-        client_id: initialData?.client_id || null // Maintain existing client_id if editing, otherwise null as requested
+        client_id: clientId || initialData?.client_id || null,
+        client_email: formData.clientEmail.toLowerCase().trim()
       }
 
       let projectId = initialData?.id
@@ -95,21 +111,15 @@ export function ProjectForm({ initialData, isEditing, onSuccess }: ProjectFormPr
           return
         }
       } else {
-        // EXACT STEP 1: Send magic link invite FIRST
+        // Only send invite if it's a new project or email changed (though email is disabled in edit)
+        // Send magic link invite
         const { error: inviteError } = await sendInvite(formData.clientEmail, formData.clientName)
         if (inviteError) throw inviteError
 
-        // EXACT STEP 2: Create project WITHOUT client_id for now
+        // Create project
         const { data: newProject, error: projectError } = await supabase
           .from('projects')
-          .insert({
-            name: formData.name,
-            description: formData.description,
-            status: formData.status,
-            health: formData.health,
-            progress: formData.progress,
-            client_id: null // Explicitly null as per request
-          })
+          .insert(projectPayload)
           .select()
           .single()
           
@@ -124,7 +134,11 @@ export function ProjectForm({ initialData, isEditing, onSuccess }: ProjectFormPr
           message: `created the project and invited ${formData.clientEmail}`
         })
 
-        toast.success(`Project created! Invite sent to ${formData.clientEmail}`)
+        if (clientId) {
+          toast.success('Project linked to existing client!')
+        } else {
+          toast.success(`Project created! Invite sent to ${formData.clientEmail}`)
+        }
       }
 
       router.push('/admin') // STEP 4: Redirect to /admin

@@ -56,18 +56,28 @@ export async function middleware(request: NextRequest) {
     .eq('id', user.id)
     .single()
 
-  const role = profile?.role || 'client'
+  const role = profile?.role?.toLowerCase()
+
+  // PROBLEM 2 FIX - Middleware role tracing and strict redirects
+  console.log('middleware role:', role, 'path:', pathname)
 
   if (role === 'client') {
-    // Clients skip admin and login
-    if (pathname.startsWith('/admin') || isLoginPage) {
+    // Clients skip admin area
+    if (pathname.startsWith('/admin')) {
+      console.log('middleware: client blocked from admin. redirecting to /')
+      return NextResponse.redirect(new URL('/', request.url))
+    }
+    // Clients skip login page
+    if (pathname === '/auth/login') {
+      console.log('middleware: logged in client at login. redirecting to /')
       return NextResponse.redirect(new URL('/', request.url))
     }
   }
 
   if (role === 'admin' || role === 'team') {
-    // Admins/Team skip login and go to admin dashboard
-    if (isLoginPage) {
+    // Admins/Team skip login and root (they go to admin dashboard)
+    if (pathname === '/auth/login' || pathname === '/') {
+      console.log('middleware: staff at login/root. redirecting to /admin')
       return NextResponse.redirect(new URL('/admin', request.url))
     }
   }
