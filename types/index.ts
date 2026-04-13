@@ -32,7 +32,6 @@ export interface Task {
   milestone_id: string
   title: string
   status: 'todo' | 'in-progress' | 'review' | 'done'
-  priority?: 'low' | 'medium' | 'high'
   estimated_hours?: number
   description: string
   assigned_to?: string

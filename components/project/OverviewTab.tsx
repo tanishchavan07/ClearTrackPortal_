@@ -191,11 +191,6 @@ function TaskRow({ task, isEditable, projectId }: { task: Task, isEditable: bool
     'done': <CheckCircle2 className="h-4 w-4 text-emerald-500" />
   }
 
-  const priorityColors: any = {
-    'low': 'text-slate-500 bg-slate-100',
-    'medium': 'text-blue-600 bg-blue-100',
-    'high': 'text-rose-600 bg-rose-100'
-  }
 
   return (
     <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100/50 hover:border-gray-200 transition-colors group">
@@ -203,9 +198,6 @@ function TaskRow({ task, isEditable, projectId }: { task: Task, isEditable: bool
         {statusIcons[task.status]}
         <div>
           <p className="text-sm font-bold text-gray-900 leading-tight">{task.title}</p>
-          <div className={`mt-1 inline-block px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${priorityColors[task.priority || 'medium']}`}>
-            {task.priority || 'medium'}
-          </div>
         </div>
       </div>
 
@@ -249,7 +241,6 @@ function TaskRow({ task, isEditable, projectId }: { task: Task, isEditable: bool
 function InlineAddTask({ milestoneId, projectId }: { milestoneId: string, projectId: string }) {
   const [isAdding, setIsAdding] = useState(false)
   const [title, setTitle] = useState('')
-  const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium')
   const [loading, setLoading] = useState(false)
   const queryClient = useQueryClient()
 
@@ -260,7 +251,6 @@ function InlineAddTask({ milestoneId, projectId }: { milestoneId: string, projec
       const { error } = await supabase.from('tasks').insert({
         milestone_id: milestoneId,
         title: title.trim(),
-        priority,
         status: 'todo',
         description: ''
       })
@@ -301,29 +291,15 @@ function InlineAddTask({ milestoneId, projectId }: { milestoneId: string, projec
             className="h-10 rounded-xl border-gray-100 font-bold focus:border-blue-400 bg-gray-50/30"
             onKeyDown={(e) => e.key === 'Enter' && handleSave()}
           />
-          <div className="flex gap-3">
-             <div className="flex-1">
-                <Select value={priority} onValueChange={(v: any) => setPriority(v)}>
-                   <SelectTrigger className="h-10 rounded-xl text-[10px] font-black uppercase tracking-widest border-gray-100 bg-gray-50/30">
-                      <SelectValue />
-                   </SelectTrigger>
-                   <SelectContent className="rounded-xl">
-                      <SelectItem value="low">Low Priority</SelectItem>
-                      <SelectItem value="medium">Medium Priority</SelectItem>
-                      <SelectItem value="high">High Priority</SelectItem>
-                   </SelectContent>
-                </Select>
-             </div>
-             <div className="flex gap-2">
-                <Button onClick={handleSave} disabled={loading || !title.trim()} className="bg-blue-600 hover:bg-blue-700 h-10 rounded-xl px-4 text-[10px] font-black uppercase tracking-widest">
-                  Save
-                </Button>
-                <Button variant="ghost" onClick={() => setIsAdding(false)} className="h-10 rounded-xl text-gray-400 hover:text-rose-500 font-black uppercase tracking-widest text-[10px]">
-                  Cancel
-                </Button>
-             </div>
-          </div>
-       </div>
+           <div className="flex gap-2 justify-end">
+                 <Button onClick={handleSave} disabled={loading || !title.trim()} className="bg-blue-600 hover:bg-blue-700 h-10 rounded-xl px-4 text-[10px] font-black uppercase tracking-widest">
+                   Save
+                 </Button>
+                 <Button variant="ghost" onClick={() => setIsAdding(false)} className="h-10 rounded-xl text-gray-400 hover:text-rose-500 font-black uppercase tracking-widest text-[10px]">
+                   Cancel
+                 </Button>
+           </div>
+        </div>
     </div>
   )
 }

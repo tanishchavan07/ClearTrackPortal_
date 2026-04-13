@@ -5,6 +5,7 @@ import { Plus, Check, X, Loader2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
@@ -31,7 +32,6 @@ export function InlineAddTask({
   const [isAdding, setIsAdding] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium')
   const [hours, setHours] = useState<number>(0)
   const [status, setStatus] = useState(defaultStatus)
   const [milestoneId, setMilestoneId] = useState(initialMilestoneId || '')
@@ -93,9 +93,7 @@ export function InlineAddTask({
         milestone_id: milestoneId,
         title: title.trim(),
         description: description.trim(),
-        status,
-        priority,
-        estimated_hours: hours
+        status
       })
 
       if (taskError) throw taskError
@@ -112,7 +110,6 @@ export function InlineAddTask({
       setTitle('')
       setDescription('')
       setHours(0)
-      setPriority('medium')
       setIsAdding(false)
       
       // Refresh queries
@@ -175,29 +172,14 @@ export function InlineAddTask({
            />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Priority</Label>
-            <Select value={priority} onValueChange={(v: any) => setPriority(v)}>
-              <SelectTrigger className="h-9 rounded-xl text-[10px] font-black uppercase tracking-widest bg-gray-50/50 border-gray-100">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Hours</Label>
-            <Input 
-              type="number" 
-              value={hours} 
-              onChange={(e) => setHours(Number(e.target.value))} 
-              className="h-9 text-sm font-bold border-gray-100 bg-gray-50/50 rounded-xl"
-            />
-          </div>
+        <div className="space-y-1">
+          <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Estimated Hours</Label>
+          <Input 
+            type="number" 
+            value={hours} 
+            onChange={(e) => setHours(Number(e.target.value))} 
+            className="h-9 text-sm font-bold border-gray-100 bg-gray-50/50 rounded-xl w-32"
+          />
         </div>
 
         <div className="space-y-1">

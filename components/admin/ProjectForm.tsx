@@ -33,16 +33,12 @@ export function ProjectForm({ initialData, isEditing, onSuccess }: ProjectFormPr
     clientName: initialData?.client_name || ''
   })
 
-  const sendInvite = async (email: string, name: string, projectId?: string) => {
-    // Exact STEP 1 logic from user request
+  const sendInvite = async (email: string, name: string) => {
     const { error } = await supabase.auth.signInWithOtp({
-      email: email,
+      email,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
-        data: {
-          name: name,
-          role: 'client'
-        }
+        data: { name, role: 'client' }
       }
     })
     return { error }
@@ -52,7 +48,7 @@ export function ProjectForm({ initialData, isEditing, onSuccess }: ProjectFormPr
     if (!formData.clientEmail) return
     setResending(true)
     try {
-      const { error } = await sendInvite(formData.clientEmail, formData.clientName, initialData?.id)
+      const { error } = await sendInvite(formData.clientEmail, formData.clientName)
       if (error) throw error
       toast.success(`Invite resent to ${formData.clientEmail}`)
     } catch (error: any) {
@@ -70,39 +66,33 @@ export function ProjectForm({ initialData, isEditing, onSuccess }: ProjectFormPr
       const { data: userData } = await supabase.auth.getUser()
       if (!userData?.user) throw new Error('Not authenticated')
 
-      // Proactive check: Does this client already exist in our users table?
       let clientId = null
-      if (formData.clientEmail) {
-        const { data: existingUser } = await supabase
-          .from('users')
-          .select('id')
-          .eq('email', formData.clientEmail.toLowerCase().trim())
-          .maybeSingle()
-        
-        if (existingUser) {
-          clientId = existingUser.id
-          console.log('Project Form: Found existing client with ID:', clientId)
+
+      if (isEditing && initialData?.id) {
+        // For editing, check existing client
+        if (formData.clientEmail) {
+          const { data: existingUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', formData.clientEmail.toLowerCase().trim())
+            .maybeSingle()
+          if (existingUser) clientId = existingUser.id
         }
-      }
 
-      const projectPayload = {
-        name: formData.name,
-        description: formData.description,
-        status: formData.status,
-        health: formData.health,
-        progress: formData.progress,
-        client_id: clientId || initialData?.client_id || null,
-        client_email: formData.clientEmail.toLowerCase().trim()
-      }
+        const projectPayload = {
+          name: formData.name,
+          description: formData.description,
+          status: formData.status,
+          health: formData.health,
+          progress: formData.progress,
+          client_id: clientId || initialData?.client_id || null,
+          client_email: formData.clientEmail.toLowerCase().trim()
+        }
 
-      let projectId = initialData?.id
-
-      if (isEditing && projectId) {
-        // Update project
         const { error: updateError } = await supabase
           .from('projects')
           .update(projectPayload)
-          .eq('id', projectId)
+          .eq('id', initialData.id)
         
         if (updateError) throw updateError
         toast.success('Project updated successfully')
@@ -111,12 +101,54 @@ export function ProjectForm({ initialData, isEditing, onSuccess }: ProjectFormPr
           return
         }
       } else {
-        // Only send invite if it's a new project or email changed (though email is disabled in edit)
-        // Send magic link invite
+        // ===== NEW PROJECT FLOW =====
+
+        // Step 1: Send magic link invite to client
         const { error: inviteError } = await sendInvite(formData.clientEmail, formData.clientName)
         if (inviteError) throw inviteError
 
-        // Create project
+        // Step 2: Check if client already exists in users table
+        const email = formData.clientEmail.toLowerCase().trim()
+        const { data: existingClient } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', email)
+          .maybeSingle()
+
+        if (existingClient) {
+          clientId = existingClient.id
+        } else {
+          // Step 3: Create client in users table immediately
+          const { data: newClient, error: clientError } = await supabase
+            .from('users')
+            .insert({
+              email: email,
+              name: formData.clientName || null,
+              role: 'client'
+            })
+            .select('id')
+            .single()
+
+          if (clientError) {
+            console.error('Could not create client record:', clientError.message)
+            // Not fatal — project will still be created, client will be linked on first login
+          } else {
+            clientId = newClient.id
+            console.log('Client created in users table with ID:', clientId)
+          }
+        }
+
+        // Step 4: Create the project linked to the client
+        const projectPayload = {
+          name: formData.name,
+          description: formData.description,
+          status: formData.status,
+          health: formData.health,
+          progress: formData.progress,
+          client_id: clientId || null,
+          client_email: email
+        }
+
         const { data: newProject, error: projectError } = await supabase
           .from('projects')
           .insert(projectPayload)
@@ -124,24 +156,19 @@ export function ProjectForm({ initialData, isEditing, onSuccess }: ProjectFormPr
           .single()
           
         if (projectError) throw projectError
-        projectId = newProject.id
 
-        // Activity log
+        // Step 5: Log activity
         await supabase.from('activity_feed').insert({
-          project_id: projectId,
+          project_id: newProject.id,
           user_id: userData.user.id,
           action: 'project_created',
           message: `created the project and invited ${formData.clientEmail}`
         })
 
-        if (clientId) {
-          toast.success('Project linked to existing client!')
-        } else {
-          toast.success(`Project created! Invite sent to ${formData.clientEmail}`)
-        }
+        toast.success('Project created & client added!')
       }
 
-      router.push('/admin') // STEP 4: Redirect to /admin
+      router.push('/admin')
     } catch (error: any) {
       toast.error(error.message || 'Error saving project')
     } finally {

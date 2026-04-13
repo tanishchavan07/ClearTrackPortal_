@@ -32,7 +32,6 @@ export function TaskCard({ task, milestoneTitle, role, projectId }: TaskCardProp
   const [title, setTitle] = useState(task.title || '')
   const [description, setDescription] = useState(task.description || '')
   const [status, setStatus] = useState(task.status)
-  const [priority, setPriority] = useState(task.priority || 'medium')
   const [hours, setHours] = useState(task.estimated_hours || 0)
   const [loading, setLoading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -49,7 +48,6 @@ export function TaskCard({ task, milestoneTitle, role, projectId }: TaskCardProp
           title,
           description,
           status,
-          priority: priority as any,
           estimated_hours: Number(hours)
         }
       })
@@ -77,11 +75,6 @@ export function TaskCard({ task, milestoneTitle, role, projectId }: TaskCardProp
     }
   }
 
-  const priorityColors = {
-    low: 'text-gray-500 bg-gray-50',
-    medium: 'text-amber-600 bg-amber-50',
-    high: 'text-rose-600 bg-rose-50'
-  }
 
   return (
     <>
@@ -122,9 +115,6 @@ export function TaskCard({ task, milestoneTitle, role, projectId }: TaskCardProp
           )}
 
           <div className="flex items-center gap-2 pt-2 border-t border-gray-50 mt-4">
-             <div className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${priorityColors[task.priority || 'medium']}`}>
-                {task.priority || 'medium'}
-             </div>
              {task.estimated_hours && (
                <div className="px-2 py-1 bg-slate-50 text-slate-500 rounded-lg text-[9px] font-black uppercase tracking-widest">
                   {task.estimated_hours}h
@@ -162,17 +152,8 @@ export function TaskCard({ task, milestoneTitle, role, projectId }: TaskCardProp
                   </Select>
                 </div>
                 <div className="space-y-3">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Priority Level</Label>
-                  <Select value={priority} onValueChange={(v: any) => setPriority(v)}>
-                    <SelectTrigger className="h-12 rounded-2xl border-2 border-gray-100 font-bold bg-gray-50/30">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-2xl border-2 border-gray-100 shadow-xl">
-                      <SelectItem value="low">Low Priority</SelectItem>
-                      <SelectItem value="medium">Medium Priority</SelectItem>
-                      <SelectItem value="high">High Priority</SelectItem>
-                    </SelectContent>
-                  </Select>
+                   <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Est. Hours</Label>
+                   <Input type="number" value={hours} onChange={(e) => setHours(Number(e.target.value))} className="h-12 rounded-2xl border-2 border-gray-100 font-bold bg-gray-50/30" />
                 </div>
               </div>
 
@@ -181,12 +162,7 @@ export function TaskCard({ task, milestoneTitle, role, projectId }: TaskCardProp
                 <Input value={title} onChange={(e) => setTitle(e.target.value)} className="h-12 rounded-2xl border-2 border-gray-100 font-bold bg-gray-50/30 text-lg" />
               </div>
 
-              <div className="grid grid-cols-2 gap-8">
-                 <div className="space-y-3">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Est. Hours</Label>
-                    <Input type="number" value={hours} onChange={(e) => setHours(Number(e.target.value))} className="h-12 rounded-2xl border-2 border-gray-100 font-bold bg-gray-50/30" />
-                 </div>
-              </div>
+
 
               <div className="space-y-3">
                 <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Detailed Description</Label>

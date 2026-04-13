@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { 
+  ArrowLeft,
   BarChart3, 
   Calendar, 
   CheckCircle, 
@@ -172,6 +173,13 @@ export default function ProjectDetailPage() {
     <div className="bg-white min-h-screen pb-20">
       {/* Hero Section */}
       <div className="p-8 lg:p-12 max-w-7xl mx-auto border-b-2 border-gray-100 bg-white mb-12">
+        <button
+          onClick={() => router.push(isInternal ? '/admin' : '/')}
+          className="flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-gray-900 transition-colors mb-6 group"
+        >
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+          Back to Dashboard
+        </button>
         <div className="flex flex-col lg:flex-row justify-between items-end gap-8">
           <div className="space-y-8 flex-1">
             <div className="space-y-4">

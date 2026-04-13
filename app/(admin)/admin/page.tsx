@@ -1,6 +1,9 @@
 'use client'
 
+import { useState } from 'react'
+
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Plus, Search, Filter } from 'lucide-react'
 import { format } from 'date-fns'
 import { useProjects } from '@/lib/hooks/useProjects'
@@ -10,7 +13,14 @@ import { StatusBadge, HealthBadge } from '@/components/dashboard/HealthBadge'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export default function AdminOverviewPage() {
+  const router = useRouter()
   const { data: projects, isLoading } = useProjects()
+  const [searchTerm, setSearchTerm] = useState('')
+
+  const filteredProjects = projects?.filter(project =>
+    project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    project.status.toLowerCase().includes(searchTerm.toLowerCase())
+  )
 
   return (
     <div className="space-y-6">
@@ -26,15 +36,16 @@ export default function AdminOverviewPage() {
       </div>
 
       <div className="bg-white border md:rounded-xl shadow-sm border-gray-200 -mx-4 sm:mx-0 overflow-hidden">
-        <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row items-center gap-4">
-          <div className="relative flex-1 w-full">
+        <div className="p-4 border-b border-gray-200">
+          <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input placeholder="Search projects..." className="pl-9 w-full sm:max-w-xs" />
+            <Input 
+              placeholder="Search projects..." 
+              className="pl-9" 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
-          <Button variant="outline" className="w-full sm:w-auto">
-            <Filter className="mr-2 h-4 w-4" />
-            Filter
-          </Button>
         </div>
 
         <div className="overflow-x-auto">
@@ -46,7 +57,6 @@ export default function AdminOverviewPage() {
                 <th className="px-6 py-3 border-b border-gray-200 uppercase tracking-wider text-xs">Status</th>
                 <th className="px-6 py-3 border-b border-gray-200 uppercase tracking-wider text-xs">Progress</th>
                 <th className="px-6 py-3 border-b border-gray-200 uppercase tracking-wider text-xs">Created</th>
-                <th className="px-6 py-3 border-b border-gray-200 text-right uppercase tracking-wider text-xs">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -58,23 +68,22 @@ export default function AdminOverviewPage() {
                     <td className="px-6 py-4"><Skeleton className="h-6 w-16 rounded-full" /></td>
                     <td className="px-6 py-4"><Skeleton className="h-2 w-24 rounded-full" /></td>
                     <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
-                    <td className="px-6 py-4"><Skeleton className="h-8 w-16 ml-auto" /></td>
                   </tr>
                 ))
-              ) : projects?.length === 0 ? (
+              ) : filteredProjects?.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                    No projects found
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                    {searchTerm ? 'No projects match your search.' : 'No projects found'}
                   </td>
                 </tr>
               ) : (
-                projects?.map((project) => (
-                  <tr key={project.id} className="hover:bg-gray-50 transition-colors">
+                filteredProjects?.map((project) => (
+                  <tr key={project.id} className="hover:bg-blue-50/40 transition-colors cursor-pointer" onClick={() => router.push(`/projects/${project.id}`)}>
                     <td className="px-6 py-4 font-medium text-gray-900">
                       {project.name}
                     </td>
                     <td className="px-6 py-4 text-gray-500 truncate max-w-[150px]">
-                      {project.client_id} {/* Ideally resolved to name */}
+                      {project.client_id}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-2">
@@ -95,16 +104,6 @@ export default function AdminOverviewPage() {
                     </td>
                     <td className="px-6 py-4 text-gray-500">
                       {format(new Date(project.created_at), 'MMM d, yyyy')}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link href={`/projects/${project.id}`} className={buttonVariants({ variant: 'ghost', size: 'sm', className: 'text-blue-600 hover:text-blue-700 hover:bg-blue-50' })}>
-                          View
-                        </Link>
-                        <Link href={`/admin/projects/${project.id}/edit`} className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
-                          Edit
-                        </Link>
-                      </div>
                     </td>
                   </tr>
                 ))
