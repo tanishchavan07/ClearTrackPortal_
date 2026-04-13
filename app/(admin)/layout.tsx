@@ -1,11 +1,51 @@
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Topbar } from '@/components/layout/Topbar'
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  // Defence-in-depth: middleware is the first line, but this server-side
+  // check ensures no client can ever render the admin UI even if middleware
+  // has a gap (e.g. direct navigation, browser back-button after role change).
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/auth/login')
+  }
+
+  // Look up the role by UID first, then fall back to email for pre-created rows.
+  let role: string | undefined
+
+  const { data: profileById } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (profileById?.role) {
+    role = profileById.role.toLowerCase()
+  } else if (user.email) {
+    const { data: profileByEmail } = await supabase
+      .from('users')
+      .select('role')
+      .eq('email', user.email.toLowerCase())
+      .maybeSingle()
+    if (profileByEmail?.role) role = profileByEmail.role.toLowerCase()
+  }
+
+  // Only admin and team may access this layout.
+  if (role !== 'admin' && role !== 'team') {
+    // Client users go to their dashboard; unknown roles go to login.
+    redirect(role === 'client' ? '/' : '/auth/login')
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
       <Sidebar />

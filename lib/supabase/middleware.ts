@@ -1,10 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+/**
+ * Refreshes the Supabase session cookie and returns an updated response.
+ * Route-level access control is handled entirely in the root middleware.ts;
+ * this helper is responsible ONLY for keeping the session token fresh.
+ */
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
+  // A single response object that we mutate in-place so cookies are never lost.
+  const response = NextResponse.next({ request })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,46 +19,22 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
-          })
+          // Patch the request so downstream Server Components see the updated
+          // cookies, and patch the response so the browser receives them.
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          )
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            response.cookies.set(name, value, options)
           )
         },
       },
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Calling getUser() triggers a token refresh when the access token has
+  // expired, which writes the new token via the setAll callback above.
+  await supabase.auth.getUser()
 
-  const path = request.nextUrl.pathname
-
-  if (!user && (path.startsWith('/admin') || path === '/' || path.startsWith('/projects'))) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
-    return NextResponse.redirect(url)
-  }
-
-  // Role checks for admin and team
-  if (user && path.startsWith('/admin')) {
-    // We need to check the user's role.
-    // Fetch the user's details from the public.users table
-    const { data: userData } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (userData?.role === 'client') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/'
-      return NextResponse.redirect(url)
-    }
-  }
-
-  return supabaseResponse
+  return response
 }

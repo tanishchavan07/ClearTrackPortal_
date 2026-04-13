@@ -8,36 +8,49 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
+  // Middleware already blocks non-clients from reaching '/'.
+  // This is a defence-in-depth server-side guard that matches the same
+  // two-step role-lookup pattern used in middleware and the admin layout,
+  // ensuring there is never a race condition between async lookups.
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  // PROBLEM 4 FIX - Dashboard layout blocking client
   if (!user) {
-    console.log('Dashboard Layout: No user, redirecting back to /auth/login')
     redirect('/auth/login')
   }
 
-  const { data: profile } = await supabase
+  // Resolve role — identical two-step lookup used across middleware and layouts.
+  let role: string | undefined
+
+  const { data: profileById } = await supabase
     .from('users')
     .select('role')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
-  const role = profile?.role?.toLowerCase()
+  if (profileById?.role) {
+    role = profileById.role.toLowerCase()
+  } else if (user.email) {
+    const { data: profileByEmail } = await supabase
+      .from('users')
+      .select('role')
+      .eq('email', user.email.toLowerCase())
+      .maybeSingle()
+    if (profileByEmail?.role) role = profileByEmail.role.toLowerCase()
+  }
 
-  console.log('Dashboard Layout role check:', role)
-
-  if (role === 'team' || role === 'admin') {
-    console.log('Dashboard Layout: Staff in client area. Redirecting to /admin')
+  // Staff who somehow reach the client area get pushed to /admin.
+  if (role === 'admin' || role === 'team') {
     redirect('/admin')
   }
 
+  // Unknown or missing roles are not allowed — send to login.
   if (role !== 'client') {
-    console.log('Dashboard Layout: Unknown or non-client role:', role, '- redirecting to login')
     redirect('/auth/login')
   }
 
-  console.log('Dashboard Layout: Role is client. Rendering children.')
   return (
     <div className="flex h-screen overflow-hidden bg-white">
       <Sidebar />

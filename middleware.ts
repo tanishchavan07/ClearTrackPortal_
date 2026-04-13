@@ -2,11 +2,12 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  })
+  /**
+   * IMPORTANT: `response` must be the object that cookies are set on AND
+   * returned. Re-creating it inside setAll (old pattern) caused cookies to
+   * be written to a new response that was then discarded.
+   */
+  const response = NextResponse.next({ request })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,12 +18,11 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
+          // Write refreshed session cookies to both the forwarded request and
+          // the response so the browser and server stay in sync.
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          )
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           )
@@ -31,64 +31,81 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  // Allow auth/callback to pass through freely
-  if (pathname.includes('/auth/callback')) return response
+  // Always allow the auth callback through — Supabase needs it to exchange
+  // the magic-link token for a session.
+  if (pathname.startsWith('/auth/callback')) return response
 
-  // Public/Marketing/Login pages
-  const isLoginPage = pathname.startsWith('/auth/login')
-  const isOnboardingPage = pathname.startsWith('/onboarding')
-  
+  // Resolve the authenticated user via the server (not from a stale cookie
+  // value) so the JWT is always verified on every request.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  // ─── Unauthenticated users ──────────────────────────────────────────────
   if (!user) {
-    // If not logged in and visiting protected routes, redirect to login
-    if (!isLoginPage && !isOnboardingPage && pathname !== '/') {
-      return NextResponse.redirect(new URL('/auth/login', request.url))
+    const isPublic =
+      pathname.startsWith('/auth/') || pathname.startsWith('/onboarding')
+    if (!isPublic) {
+      const loginUrl = new URL('/auth/login', request.url)
+      return NextResponse.redirect(loginUrl)
     }
     return response
   }
 
-  // User is logged in, fetch role
-  let { data: profile } = await supabase
+  // ─── Resolve role — single DB call, middleware is the ONLY place this
+  //     happens so there is exactly one source of truth per request. ────────
+  let role: string | undefined
+
+  // Primary: look up by auth UID
+  const { data: profileById } = await supabase
     .from('users')
     .select('role')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
-  // Fallback 1: check by email (handles pre-created clients with different ID)
-  if (!profile && user.email) {
-    const { data: emailProfile } = await supabase
+  if (profileById?.role) {
+    role = profileById.role.toLowerCase()
+  } else if (user.email) {
+    // Fallback: pre-created client rows matched by email before their
+    // auth UID was synced.
+    const { data: profileByEmail } = await supabase
       .from('users')
       .select('role')
       .eq('email', user.email.toLowerCase())
       .maybeSingle()
-    if (emailProfile) profile = emailProfile
+    if (profileByEmail?.role) {
+      role = profileByEmail.role.toLowerCase()
+    }
   }
 
-  // Fallback 2: check auth metadata (useful for immediate identification after invite)
-  const role = profile?.role?.toLowerCase() || (user.user_metadata?.role as string)?.toLowerCase()
+  // If role is still unknown after both DB lookups we cannot safely route.
+  // Send the user to login rather than silently defaulting to any role.
+  if (!role) {
+    console.warn('[middleware] Could not resolve role for user', user.id)
+    const loginUrl = new URL('/auth/login', request.url)
+    return NextResponse.redirect(loginUrl)
+  }
 
-  // PROBLEM 2 FIX - Middleware role tracing and strict redirects
-  console.log('middleware role:', role, 'path:', pathname)
+  // ─── Role-based route guards ─────────────────────────────────────────────
+  const isClient = role === 'client'
+  const isStaff = role === 'admin' || role === 'team'
 
-  if (role === 'client') {
-    // Clients skip admin area
+  if (isClient) {
+    // Block clients from the admin area entirely
     if (pathname.startsWith('/admin')) {
-      console.log('middleware: client blocked from admin. redirecting to /')
       return NextResponse.redirect(new URL('/', request.url))
     }
-    // Clients skip login page
-    if (pathname === '/auth/login') {
-      console.log('middleware: logged in client at login. redirecting to /')
+    // Redirect clients away from the login page (they are already signed in)
+    if (pathname.startsWith('/auth/')) {
       return NextResponse.redirect(new URL('/', request.url))
     }
   }
 
-  if (role === 'admin' || role === 'team') {
-    // Admins/Team skip login and root (they go to admin dashboard)
-    if (pathname === '/auth/login' || pathname === '/') {
-      console.log('middleware: staff at login/root. redirecting to /admin')
+  if (isStaff) {
+    // Block staff from the client dashboard — they must always go to /admin
+    if (pathname === '/' || pathname.startsWith('/auth/')) {
       return NextResponse.redirect(new URL('/admin', request.url))
     }
   }
@@ -99,12 +116,8 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
+     * Run on every path except Next.js internals and static assets.
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
