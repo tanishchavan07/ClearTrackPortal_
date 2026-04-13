@@ -46,7 +46,11 @@ export async function middleware(request: NextRequest) {
   // ─── Unauthenticated users ──────────────────────────────────────────────
   if (!user) {
     const isPublic =
-      pathname.startsWith('/auth/') || pathname.startsWith('/onboarding')
+      pathname.startsWith('/auth/') ||
+      pathname.startsWith('/onboarding') ||
+      // Allow the session-expired page without auth — users may land here
+      // with an invalid/expired magic link and no active session.
+      pathname.startsWith('/session-expired')
     if (!isPublic) {
       const loginUrl = new URL('/auth/login', request.url)
       return NextResponse.redirect(loginUrl)
