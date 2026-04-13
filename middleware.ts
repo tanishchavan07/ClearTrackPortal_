@@ -97,20 +97,27 @@ export async function middleware(request: NextRequest) {
   const isStaff = role === 'admin' || role === 'team'
 
   if (isClient) {
-    // Block clients from the admin area entirely
-    if (pathname.startsWith('/admin')) {
-      return NextResponse.redirect(new URL('/', request.url))
+    // Redirect root to client-dashboard
+    if (pathname === '/') {
+      return NextResponse.redirect(new URL('/client-dashboard', request.url))
     }
-    // Redirect clients away from the login page (they are already signed in)
+    // Block clients from the admin area entirely with a hard 404
+    if (pathname.startsWith('/admin')) {
+      return NextResponse.rewrite(new URL('/404', request.url))
+    }
+    // Redirect clients away from the login/public pages (they are already signed in)
     if (pathname.startsWith('/auth/')) {
-      return NextResponse.redirect(new URL('/', request.url))
+      return NextResponse.redirect(new URL('/client-dashboard', request.url))
     }
   }
 
   if (isStaff) {
-    // Block staff from the client dashboard — they must always go to /admin
     if (pathname === '/' || pathname.startsWith('/auth/')) {
       return NextResponse.redirect(new URL('/admin', request.url))
+    }
+    // Block staff from the client dashboard with a hard 404 securely
+    if (pathname.startsWith('/client-dashboard')) {
+      return NextResponse.rewrite(new URL('/404', request.url))
     }
   }
 

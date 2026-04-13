@@ -1,7 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { Sidebar } from '@/components/layout/Sidebar'
-import { Topbar } from '@/components/layout/Topbar'
 
 export default async function DashboardLayout({
   children,
@@ -52,14 +50,13 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Topbar />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          {children}
-        </main>
-      </div>
+    <div className="flex min-h-screen flex-col bg-gray-50">
+      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <h1 className="text-xl font-bold text-blue-600 tracking-tight">ClearTrack Portal</h1>
+      </header>
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        {children}
+      </main>
     </div>
   )
 }

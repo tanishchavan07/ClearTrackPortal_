@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { redirect, notFound } from 'next/navigation'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Topbar } from '@/components/layout/Topbar'
 import { ErrorRedirectGuard } from '@/components/auth/ErrorRedirectGuard'
@@ -43,8 +43,12 @@ export default async function AdminLayout({
 
   // Only admin and team may access this layout.
   if (role !== 'admin' && role !== 'team') {
-    // Client users go to their dashboard; unknown roles go to login.
-    redirect(role === 'client' ? '/' : '/auth/login')
+    // Return a hard 404 for unauthorized client access instead of a redirect
+    if (role === 'client') {
+      notFound()
+    } else {
+      redirect('/auth/login')
+    }
   }
 
   return (

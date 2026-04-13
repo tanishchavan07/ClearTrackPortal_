@@ -117,8 +117,8 @@ export async function GET(request: Request) {
             console.log('Auth Callback: Client needs onboarding. Redirecting to /onboarding')
             return NextResponse.redirect(`${origin}/onboarding`)
           } else {
-            console.log('Auth Callback: Client verified. Redirecting to /')
-            return NextResponse.redirect(`${origin}/`)
+            console.log('Auth Callback: Client verified. Redirecting to /client-dashboard')
+            return NextResponse.redirect(`${origin}/client-dashboard`)
           }
         }
 
@@ -129,7 +129,7 @@ export async function GET(request: Request) {
 
         // Fallback
         console.log('Auth Callback: Defaulting unknown role', role, 'to client area')
-        return NextResponse.redirect(`${origin}/`)
+        return NextResponse.redirect(`${origin}/client-dashboard`)
       }
     }
   }

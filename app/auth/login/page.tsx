@@ -45,7 +45,7 @@ export default function LoginPage() {
         router.push('/admin')
       } else if (userProfile.role === 'client') {
         toast.success('Welcome back')
-        router.push('/')
+        router.push('/client-dashboard')
       } else {
         toast.error('Access denied')
         await supabase.auth.signOut()
