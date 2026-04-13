@@ -50,13 +50,24 @@ export async function middleware(request: NextRequest) {
   }
 
   // User is logged in, fetch role
-  const { data: profile } = await supabase
+  let { data: profile } = await supabase
     .from('users')
     .select('role')
     .eq('id', user.id)
     .single()
 
-  const role = profile?.role?.toLowerCase()
+  // Fallback 1: check by email (handles pre-created clients with different ID)
+  if (!profile && user.email) {
+    const { data: emailProfile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('email', user.email.toLowerCase())
+      .maybeSingle()
+    if (emailProfile) profile = emailProfile
+  }
+
+  // Fallback 2: check auth metadata (useful for immediate identification after invite)
+  const role = profile?.role?.toLowerCase() || (user.user_metadata?.role as string)?.toLowerCase()
 
   // PROBLEM 2 FIX - Middleware role tracing and strict redirects
   console.log('middleware role:', role, 'path:', pathname)

@@ -11,15 +11,35 @@ export function useUser() {
       const { data: { user }, error: authError } = await supabase.auth.getUser()
       if (authError || !user) return null
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', user.id)
         .single()
 
-      if (error) {
+      if (error && user.email) {
+        // Fallback 1: check by email
+        const { data: emailData } = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', user.email.toLowerCase())
+          .maybeSingle()
+        
+        if (emailData) {
+          data = emailData
+          error = null
+        }
+      }
+
+      if (error || !data) {
         console.error('Error fetching user metadata:', error)
-        return null
+        // Fallback 2: return at least the auth identity if data lookup fails
+        return {
+          id: user.id,
+          email: user.email,
+          role: user.user_metadata?.role || 'client',
+          name: user.user_metadata?.name || user.email
+        } as User
       }
 
       return data as User

@@ -33,7 +33,7 @@ export default function DashboardPage() {
             id, title, due_date, status
           )
         `)
-        .eq('client_id', user.id)
+        .or(`client_id.eq.${user.id},client_email.eq.${user.email}`)
         .order('created_at', { ascending: false })
 
       if (error) {

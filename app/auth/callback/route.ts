@@ -32,37 +32,38 @@ export async function GET(request: Request) {
             .eq('email', user.email?.toLowerCase())
             .maybeSingle()
 
-          if (emailUser) {
-            // Pre-created user found! Update its ID to match the auth user ID
-            console.log('Auth Callback: Found pre-created client by email. Updating ID from', emailUser.id, 'to', user.id)
-            
-            // Update projects that reference the old ID
-            await supabase
-              .from('projects')
-              .update({ client_id: user.id })
-              .eq('client_id', emailUser.id)
+            if (emailUser) {
+              // Pre-created user found! Update its ID to match the auth user ID
+              console.log('Auth Callback: Found pre-created client by email. Updating ID from', emailUser.id, 'to', user.id)
+              
+              // 1. Update projects to new ID
+              await supabase
+                .from('projects')
+                .update({ client_id: user.id })
+                .eq('client_id', emailUser.id)
 
-            // Delete old row and create new one with correct auth ID
-            await supabase.from('users').delete().eq('id', emailUser.id)
-            
-            const { data: updatedProfile, error: upsertError } = await supabase
-              .from('users')
-              .upsert({ 
-                id: user.id, 
-                email: user.email, 
-                role: emailUser.role || 'client',
-                name: emailUser.name
-              })
-              .select('role, name')
-              .single()
+              // 2. Delete the old row (referencing the temporary ID)
+              await supabase.from('users').delete().eq('id', emailUser.id)
+              
+              // 3. Insert/Upsert new row with correct Auth ID
+              const { data: updatedProfile, error: upsertError } = await supabase
+                .from('users')
+                .upsert({ 
+                  id: user.id, 
+                  email: user.email, 
+                  role: emailUser.role || 'client',
+                  name: emailUser.name || user.email
+                })
+                .select('role, name')
+                .single()
 
-            if (upsertError) {
-              console.error('Auth Callback: Error updating pre-created user:', upsertError)
+              if (upsertError) {
+                console.error('Auth Callback: Upsert error:', upsertError)
+              } else {
+                profile = updatedProfile
+                profileError = null
+              }
             } else {
-              profile = updatedProfile
-              profileError = null
-            }
-          } else {
             // No pre-created user — create fresh
             console.log('Auth Callback: No pre-created user found. Creating new client...')
             const { data: newProfile, error: insertError } = await supabase
