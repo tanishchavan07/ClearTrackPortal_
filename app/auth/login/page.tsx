@@ -11,6 +11,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { toast } from 'sonner'
 import Link from 'next/link'
 
+import { ErrorRedirectGuard } from '@/components/auth/ErrorRedirectGuard'
+
 export default function LoginPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -58,6 +60,8 @@ export default function LoginPage() {
   }
 
   return (
+    <>
+    <ErrorRedirectGuard />
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
       <div className="w-full max-w-md space-y-8">
         <div className="flex flex-col items-center gap-2">
@@ -122,5 +126,6 @@ export default function LoginPage() {
         </Card>
       </div>
     </div>
+    </>
   )
 }

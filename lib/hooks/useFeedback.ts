@@ -2,14 +2,13 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
-import { ActivityItem } from '@/types'
 
-export function useActivityFeed(projectId: string) {
+export function useFeedback(projectId: string) {
   return useQuery({
-    queryKey: ['activity', projectId],
+    queryKey: ['feedback', projectId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('activity_feed')
+        .from('feedback')
         .select(`
           *,
           user:users!user_id (
@@ -19,12 +18,10 @@ export function useActivityFeed(projectId: string) {
           )
         `)
         .eq('project_id', projectId)
-        .neq('action', 'feedback')
         .order('created_at', { ascending: false })
-        .limit(10)
         
       if (error) throw error
-      return data as (ActivityItem & { user: { name: string; email: string; role: string } })[]
+      return data as any[]
     },
     enabled: !!projectId,
   })

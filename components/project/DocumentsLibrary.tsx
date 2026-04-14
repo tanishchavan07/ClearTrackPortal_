@@ -71,8 +71,7 @@ function FolderContent({ projectId, folder, isActive, isEditable }: { projectId:
       const { data: userData } = await supabase.auth.getUser()
       if (!userData?.user) throw new Error('Not authenticated')
 
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`
+      const fileName = `${Date.now()}-${file.name}`
       const filePath = `${projectId}/${folder}/${fileName}`
       
       const { error: uploadError } = await supabase.storage

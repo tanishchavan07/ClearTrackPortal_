@@ -46,6 +46,7 @@ import { TaskBoard } from '@/components/project/TaskBoard'
 import { ActivityFeed } from '@/components/project/ActivityFeed'
 import { DocumentsLibrary } from '@/components/project/DocumentsLibrary'
 import { FeedbackForm } from '@/components/project/FeedbackForm'
+import { FeedbackList } from '@/components/project/FeedbackList'
 import { ExportPDFButton } from '@/components/shared/ExportPDFButton'
 import { OverviewTab } from '@/components/project/OverviewTab'
 import { EditProjectModal } from '@/components/project/EditProjectModal'
@@ -252,7 +253,7 @@ export default function ProjectDetailPage() {
               { id: 'overview', label: 'Overview', icon: Info },
               { id: 'documents', label: 'Documents', icon: FileText },
               { id: 'activity', label: 'Activity', icon: History },
-              { id: 'feedback', label: 'Feedback', icon: MessageSquare }
+              { id: 'feedback', label: user?.role === 'client' ? 'Feedback' : 'Feedback List', icon: MessageSquare }
             ].map((tab) => (
               <TabsTrigger 
                 key={tab.id} 
@@ -277,15 +278,31 @@ export default function ProjectDetailPage() {
             <ActivityFeed projectId={projectId} userRole={user?.role || 'client'} />
           </TabsContent>
 
-          <TabsContent value="feedback" className="max-w-2xl mx-auto py-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <TabsContent value="feedback" className="max-w-4xl mx-auto py-12 animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-8">
              <div className="text-center mb-12 space-y-4">
                 <div className="h-20 w-20 bg-blue-50 text-blue-600 rounded-[30%] mx-auto flex items-center justify-center rotate-6 hover:rotate-0 transition-transform shadow-xl shadow-blue-50/50">
                    <MessageSquare className="h-10 w-10" />
                 </div>
-                <h2 className="text-4xl font-black text-gray-900">Reach the team.</h2>
-                <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Your feedback synchronizes directly with our Slack & Internal Feeds</p>
+                <h2 className="text-4xl font-black text-gray-900">{user?.role === 'client' ? 'Feedback Board' : 'Feedback List'}</h2>
+                <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">
+                  {user?.role === 'client' 
+                    ? 'Client feedback synchronizes directly with our Slack & Internal Feeds'
+                    : 'System feedback stream'
+                  }
+                </p>
              </div>
-             <FeedbackForm projectId={projectId} />
+             
+             {/* Always visible: Feedback List */}
+             <div className="bg-white rounded-[32px] border-2 border-gray-100 overflow-hidden shadow-xl shadow-gray-50/50">
+               <FeedbackList projectId={projectId} />
+             </div>
+
+             {/* Only visible to client: Feedback Form */}
+             {user?.role === 'client' && (
+                <div className="mt-8">
+                  <FeedbackForm projectId={projectId} />
+                </div>
+             )}
           </TabsContent>
         </Tabs>
       </div>

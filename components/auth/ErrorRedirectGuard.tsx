@@ -22,6 +22,7 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase/client'
 
 export function ErrorRedirectGuard() {
   const router = useRouter()
@@ -29,18 +30,21 @@ export function ErrorRedirectGuard() {
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    const hash = window.location.hash
-    if (!hash || hash.length <= 1) return
+    const handleHash = async () => {
+      const hash = window.location.hash
+      if (!hash || hash.length <= 1) return
 
-    // Strip the leading '#' and parse as URLSearchParams
-    const params = new URLSearchParams(hash.slice(1))
-    const errorCode = params.get('error_code')
-    const error = params.get('error')
+      // Strip the leading '#' and parse as URLSearchParams
+      const params = new URLSearchParams(hash.slice(1))
+      const errorCode = params.get('error_code')
+      const error = params.get('error')
 
-    if (errorCode || error === 'access_denied') {
-      // Replace history so the back-button doesn't return to the broken URL
-      router.replace('/session-expired')
+      if (errorCode || error === 'access_denied') {
+        router.replace('/session-expired')
+      }
     }
+
+    handleHash()
   }, [router])
 
   return null

@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { useUser } from '@/lib/hooks/useUser'
 
 export function FeedbackForm({ projectId }: { projectId: string }) {
+  const { data: user, isLoading: userLoading } = useUser()
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
@@ -33,11 +35,22 @@ export function FeedbackForm({ projectId }: { projectId: string }) {
       const { data: userData } = await supabase.auth.getUser()
       if (!userData?.user) throw new Error('Not authenticated')
 
-      const { error } = await supabase.from('activity_feed').insert({
+      // SECURITY: Double-check role from DB before inserting
+      const { data: profile } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', userData.user.id)
+        .single()
+
+      if (profile?.role !== 'client') {
+        throw new Error('Only clients can submit feedback.')
+      }
+
+      const { error } = await supabase.from('feedback').insert({
         project_id: projectId,
         user_id: userData.user.id,
-        action: 'feedback',
-        message: `[${subject}] ${message}`
+        subject: subject,
+        message: message
       })
 
       if (error) throw error
@@ -51,6 +64,10 @@ export function FeedbackForm({ projectId }: { projectId: string }) {
       setLoading(false)
     }
   }
+
+  // Hide the form entirely for admin/team
+  if (userLoading) return <div className="h-[400px] flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-blue-600" /></div>
+  if (user?.role !== 'client') return null
 
   return (
     <Card className="bg-white rounded-3xl shadow-lg shadow-gray-100 border-none">
