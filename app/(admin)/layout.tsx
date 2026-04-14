@@ -21,29 +21,22 @@ export default async function AdminLayout({
     redirect('/auth/login')
   }
 
-  // Look up the role by UID first, then fall back to email for pre-created rows.
-  let role: string | undefined
-
-  const { data: profileById } = await supabase
+  // Role lookup by UID only — no email fallback.
+  // The auth callback always syncs the auth UID into public.users before
+  // redirecting here, so an email-based lookup is never needed. Falling back
+  // to email is also a security risk: a stale pre-created row could return
+  // the wrong role for a completely different authenticated user.
+  const { data: profile } = await supabase
     .from('users')
     .select('role')
     .eq('id', user.id)
     .maybeSingle()
 
-  if (profileById?.role) {
-    role = profileById.role.toLowerCase()
-  } else if (user.email) {
-    const { data: profileByEmail } = await supabase
-      .from('users')
-      .select('role')
-      .eq('email', user.email.toLowerCase())
-      .maybeSingle()
-    if (profileByEmail?.role) role = profileByEmail.role.toLowerCase()
-  }
+  const role = profile?.role?.toLowerCase()
 
   // Only admin and team may access this layout.
-  // RULE 3: client → hard 404 (do NOT redirect to client dashboard — no cross-dashboard redirect).
-  // Unknown/missing role → login.
+  // client → hard 404 (not a redirect — avoids leaking admin route existence).
+  // Unknown / missing role → back to login.
   if (role === 'client') {
     notFound()
   }

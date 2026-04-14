@@ -38,14 +38,31 @@ export function useUser() {
     // and invalidate the per-user cache when the identity changes.
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // INITIAL_SESSION fires synchronously on mount and is already handled
+      // by the getSession() call above. Handling it here would double-set
+      // authUserId and could cause a redundant re-fetch.
+      if (event === 'INITIAL_SESSION') return
+
       const nextId = session?.user?.id ?? null
 
       setAuthUserId((prev) => {
-        // If the user ID changed (or user signed out), drop the old cache
-        // entry so the incoming user's queryFn always runs from scratch.
         if (prev !== undefined && prev !== nextId) {
+          // Drop the stale cache entry so the next fetch starts clean.
           queryClient.removeQueries({ queryKey: ['user'] })
+
+          // ── Cross-tab login guard ────────────────────────────────────────
+          // If a DIFFERENT authenticated user just took over the session
+          // (e.g. someone logged in as admin in Tab B while this tab had a
+          // client session), the server-rendered layout guard in this tab is
+          // now stale. A full page reload forces the server layout to re-run
+          // with the new cookie and apply the correct role gate — preventing
+          // the "admin sees client UI" / "client sees admin UI" flip.
+          if (prev !== null && nextId !== null && typeof window !== 'undefined') {
+            window.location.reload()
+            // Keep prev until the reload fires — avoids a flash of wrong UI.
+            return prev
+          }
         }
         return nextId
       })

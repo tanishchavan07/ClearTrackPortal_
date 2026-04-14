@@ -19,32 +19,26 @@ export default async function DashboardLayout({
     redirect('/auth/login')
   }
 
-  // Resolve role — identical two-step lookup used across middleware and layouts.
-  let role: string | undefined
-
-  const { data: profileById } = await supabase
+  // Role lookup by UID only — no email fallback.
+  // The auth callback always syncs the auth UID into public.users before
+  // redirecting here, so an email-based lookup is never needed.
+  const { data: profile } = await supabase
     .from('users')
     .select('role')
     .eq('id', user.id)
     .maybeSingle()
 
-  if (profileById?.role) {
-    role = profileById.role.toLowerCase()
-  } else if (user.email) {
-    const { data: profileByEmail } = await supabase
-      .from('users')
-      .select('role')
-      .eq('email', user.email.toLowerCase())
-      .maybeSingle()
-    if (profileByEmail?.role) role = profileByEmail.role.toLowerCase()
-  }
+  const role = profile?.role?.toLowerCase()
 
-  // Staff who somehow reach the client area get pushed to /admin.
+  // Admin / team reaching the client dashboard → hard 404.
+  // Previously this was redirect('/admin'), but a silent cross-role redirect
+  // contributed to the role-flip UX bug and leaks route information.
+  // A 404 is consistent with how (admin)/layout.tsx handles client users.
   if (role === 'admin' || role === 'team') {
-    redirect('/admin')
+    notFound()
   }
 
-  // Unknown or missing roles are not allowed — send to login.
+  // Unknown or missing role → login.
   if (role !== 'client') {
     redirect('/auth/login')
   }

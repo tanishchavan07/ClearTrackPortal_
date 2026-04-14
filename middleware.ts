@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   /**
    * IMPORTANT: `response` must be the object that cookies are set on AND
    * returned. Re-creating it inside setAll (old pattern) caused cookies to
@@ -69,25 +69,16 @@ export async function proxy(request: NextRequest) {
   // Next.js docs forbid having both app/page.tsx and app/(client)/page.tsx
   // resolve to the same '/' URL (conflicting paths error).
   if (pathname === '/') {
-    // Minimal role lookup — only for the root path redirect.
-    let role: string | undefined
-
-    const { data: profileById } = await supabase
+    // Minimal role lookup for the root-path redirect only — UID-only, no email
+    // fallback. If the UID has no matching row the user hasn't completed
+    // onboarding yet; let (client)/layout.tsx redirect them to /auth/login.
+    const { data: profile } = await supabase
       .from('users')
       .select('role')
       .eq('id', user.id)
       .maybeSingle()
 
-    if (profileById?.role) {
-      role = profileById.role.toLowerCase()
-    } else if (user.email) {
-      const { data: profileByEmail } = await supabase
-        .from('users')
-        .select('role')
-        .eq('email', user.email.toLowerCase())
-        .maybeSingle()
-      if (profileByEmail?.role) role = profileByEmail.role.toLowerCase()
-    }
+    const role = profile?.role?.toLowerCase()
 
     if (role === 'admin' || role === 'team') {
       return NextResponse.redirect(new URL('/admin', request.url))

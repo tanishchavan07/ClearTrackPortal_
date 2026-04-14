@@ -17,25 +17,16 @@ export default async function ClientLayout({
     redirect('/auth/login')
   }
 
-  // Two-step role lookup: by UID first, then by email for pre-created rows.
-  let role: string | undefined
-
-  const { data: profileById } = await supabase
+  // Role lookup by UID only — no email fallback.
+  // The auth callback always syncs the auth UID into public.users before
+  // redirecting here, so an email-based lookup is never needed.
+  const { data: profile } = await supabase
     .from('users')
     .select('role')
     .eq('id', user.id)
     .maybeSingle()
 
-  if (profileById?.role) {
-    role = profileById.role.toLowerCase()
-  } else if (user.email) {
-    const { data: profileByEmail } = await supabase
-      .from('users')
-      .select('role')
-      .eq('email', user.email.toLowerCase())
-      .maybeSingle()
-    if (profileByEmail?.role) role = profileByEmail.role.toLowerCase()
-  }
+  const role = profile?.role?.toLowerCase()
 
   // Admin or team trying to access the client area → hard 404.
   // Do NOT redirect them to /admin; that leaks information about route existence.
@@ -43,7 +34,7 @@ export default async function ClientLayout({
     notFound()
   }
 
-  // Unknown/missing role → send to login.
+  // Unknown / missing role → send to login.
   if (role !== 'client') {
     redirect('/auth/login')
   }
