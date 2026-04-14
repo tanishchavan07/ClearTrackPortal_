@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   /**
    * IMPORTANT: `response` must be the object that cookies are set on AND
    * returned. Re-creating it inside setAll (old pattern) caused cookies to
@@ -44,6 +44,8 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   // ─── Unauthenticated users ──────────────────────────────────────────────
+  // RULE 4: Middleware only handles unauthenticated users → redirect to login.
+  // Role-based access control is handled entirely in layouts (server components).
   if (!user) {
     const isPublic =
       pathname.startsWith('/auth/') ||
@@ -51,6 +53,7 @@ export async function middleware(request: NextRequest) {
       // Allow the session-expired page without auth — users may land here
       // with an invalid/expired magic link and no active session.
       pathname.startsWith('/session-expired')
+
     if (!isPublic) {
       const loginUrl = new URL('/auth/login', request.url)
       return NextResponse.redirect(loginUrl)
@@ -58,69 +61,44 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  // ─── Resolve role — single DB call, middleware is the ONLY place this
-  //     happens so there is exactly one source of truth per request. ────────
-  let role: string | undefined
+  // ─── Authenticated users ─────────────────────────────────────────────────
+  // RULE 4: Do NOT do role-based redirects here — let the layouts handle access.
+  // The ONE exception: admin/team hitting '/' must be redirected to /admin
+  // because app/(client)/page.tsx owns '/' and has no mechanism to redirect
+  // *upward* to /admin without a server page. This is necessary because
+  // Next.js docs forbid having both app/page.tsx and app/(client)/page.tsx
+  // resolve to the same '/' URL (conflicting paths error).
+  if (pathname === '/') {
+    // Minimal role lookup — only for the root path redirect.
+    let role: string | undefined
 
-  // Primary: look up by auth UID
-  const { data: profileById } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (profileById?.role) {
-    role = profileById.role.toLowerCase()
-  } else if (user.email) {
-    // Fallback: pre-created client rows matched by email before their
-    // auth UID was synced.
-    const { data: profileByEmail } = await supabase
+    const { data: profileById } = await supabase
       .from('users')
       .select('role')
-      .eq('email', user.email.toLowerCase())
+      .eq('id', user.id)
       .maybeSingle()
-    if (profileByEmail?.role) {
-      role = profileByEmail.role.toLowerCase()
-    }
-  }
 
-  // If role is still unknown after both DB lookups we cannot safely route.
-  // Send the user to login rather than silently defaulting to any role.
-  if (!role) {
-    console.warn('[middleware] Could not resolve role for user', user.id)
-    const loginUrl = new URL('/auth/login', request.url)
-    return NextResponse.redirect(loginUrl)
-  }
-
-  // ─── Role-based route guards ─────────────────────────────────────────────
-  const isClient = role === 'client'
-  const isStaff = role === 'admin' || role === 'team'
-
-  if (isClient) {
-    // Redirect root to client-dashboard
-    if (pathname === '/') {
-      return NextResponse.redirect(new URL('/client-dashboard', request.url))
+    if (profileById?.role) {
+      role = profileById.role.toLowerCase()
+    } else if (user.email) {
+      const { data: profileByEmail } = await supabase
+        .from('users')
+        .select('role')
+        .eq('email', user.email.toLowerCase())
+        .maybeSingle()
+      if (profileByEmail?.role) role = profileByEmail.role.toLowerCase()
     }
-    // Block clients from the admin area entirely with a hard 404
-    if (pathname.startsWith('/admin')) {
-      return NextResponse.rewrite(new URL('/404', request.url))
-    }
-    // Redirect clients away from the login/public pages (they are already signed in)
-    if (pathname.startsWith('/auth/')) {
-      return NextResponse.redirect(new URL('/client-dashboard', request.url))
-    }
-  }
 
-  if (isStaff) {
-    if (pathname === '/' || pathname.startsWith('/auth/')) {
+    if (role === 'admin' || role === 'team') {
       return NextResponse.redirect(new URL('/admin', request.url))
     }
-    // Block staff from the client dashboard with a hard 404 securely
-    if (pathname.startsWith('/client-dashboard')) {
-      return NextResponse.rewrite(new URL('/404', request.url))
-    }
+
+    // client or unknown role → let (client)/layout.tsx handle it.
+    return response
   }
 
+  // All other protected routes: let the layout server components
+  // handle role-based access (notFound, redirect to login, etc.).
   return response
 }
 
@@ -129,6 +107,6 @@ export const config = {
     /*
      * Run on every path except Next.js internals and static assets.
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

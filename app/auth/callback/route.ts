@@ -2,18 +2,50 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
+  console.log('=== AUTH CALLBACK TRIGGERED ===')
+  console.log('Auth Callback URL:', request.url)
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
+  const token_hash = searchParams.get('token_hash')
+  const type = searchParams.get('type')
   const next = searchParams.get('next') ?? '/'
+  
+  console.log('Params:', { code: !!code, token_hash: !!token_hash, type })
 
   if (code) {
     const supabase = await createClient()
     const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
     
+    if (exchangeError) {
+      console.error('Auth Callback: Code exchange error:', exchangeError)
+    }
+
     if (!exchangeError) {
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (user) {
+      // successful login - continues to profile check below
+    } else {
+      console.log('Auth Callback: Token exchange failed with code. Redirecting to session-expired.')
+      return NextResponse.redirect(`${origin}/session-expired`)
+    }
+  } else if (token_hash && type) {
+    const supabase = await createClient()
+    const { error: verifyError } = await supabase.auth.verifyOtp({ token_hash, type: type as any })
+    
+    if (verifyError) {
+      console.error('Auth Callback: Verify OTP error:', verifyError)
+      console.log('Auth Callback: Token exchange failed with token_hash. Redirecting to session-expired.')
+      return NextResponse.redirect(`${origin}/session-expired`)
+    }
+  } else {
+    // default failure path
+    console.log('Auth Callback: No code or token_hash present. Redirecting to session-expired.')
+    return NextResponse.redirect(`${origin}/session-expired`)
+  }
+
+  // If we reach here, either exchangeCodeForSession or verifyOtp succeeded.
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (user) {
         // Query public.users table to get role and name
         let { data: profile, error: profileError } = await supabase
           .from('users')
@@ -117,8 +149,8 @@ export async function GET(request: Request) {
             console.log('Auth Callback: Client needs onboarding. Redirecting to /onboarding')
             return NextResponse.redirect(`${origin}/onboarding`)
           } else {
-            console.log('Auth Callback: Client verified. Redirecting to /client-dashboard')
-            return NextResponse.redirect(`${origin}/client-dashboard`)
+            console.log('Auth Callback: Client verified. Redirecting to /')
+            return NextResponse.redirect(`${origin}/`)
           }
         }
 
@@ -129,12 +161,9 @@ export async function GET(request: Request) {
 
         // Fallback
         console.log('Auth Callback: Defaulting unknown role', role, 'to client area')
-        return NextResponse.redirect(`${origin}/client-dashboard`)
+        return NextResponse.redirect(`${origin}/`)
       }
-    }
-  }
-
-  // default failure path
-  console.log('Auth Callback: Token exchange failed or no code. Redirecting to login.')
+  // Should not happen if `user` is found, but fallback just in case
+  console.log('Auth Callback: User not found after successful token exchange. Redirecting to login.')
   return NextResponse.redirect(`${origin}/auth/login?error=AuthenticationFailed`)
 }

@@ -1,17 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
-import { Sidebar } from '@/components/layout/Sidebar'
-import { Topbar } from '@/components/layout/Topbar'
+import { ClientNav } from '@/components/layout/ClientNav'
 import { ErrorRedirectGuard } from '@/components/auth/ErrorRedirectGuard'
 
-export default async function AdminLayout({
+export default async function ClientLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  // Defence-in-depth: middleware is the first line, but this server-side
-  // check ensures no client can ever render the admin UI even if middleware
-  // has a gap (e.g. direct navigation, browser back-button after role change).
   const supabase = await createClient()
   const {
     data: { user },
@@ -21,7 +17,7 @@ export default async function AdminLayout({
     redirect('/auth/login')
   }
 
-  // Look up the role by UID first, then fall back to email for pre-created rows.
+  // Two-step role lookup: by UID first, then by email for pre-created rows.
   let role: string | undefined
 
   const { data: profileById } = await supabase
@@ -41,13 +37,14 @@ export default async function AdminLayout({
     if (profileByEmail?.role) role = profileByEmail.role.toLowerCase()
   }
 
-  // Only admin and team may access this layout.
-  // RULE 3: client → hard 404 (do NOT redirect to client dashboard — no cross-dashboard redirect).
-  // Unknown/missing role → login.
-  if (role === 'client') {
+  // Admin or team trying to access the client area → hard 404.
+  // Do NOT redirect them to /admin; that leaks information about route existence.
+  if (role === 'admin' || role === 'team') {
     notFound()
   }
-  if (role !== 'admin' && role !== 'team') {
+
+  // Unknown/missing role → send to login.
+  if (role !== 'client') {
     redirect('/auth/login')
   }
 
@@ -56,14 +53,11 @@ export default async function AdminLayout({
       {/* Intercepts expired / invalid magic-link hash errors client-side
           before any dashboard content is painted. Renders null. */}
       <ErrorRedirectGuard />
-      <div className="flex h-screen overflow-hidden bg-gray-50">
-        <Sidebar />
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <Topbar />
-          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-            {children}
-          </main>
-        </div>
+      <div className="flex min-h-screen flex-col bg-gray-50">
+        <ClientNav />
+        <main className="flex-1 overflow-y-auto">
+          {children}
+        </main>
       </div>
     </>
   )
