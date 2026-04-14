@@ -88,12 +88,16 @@ export function AddTaskModal({ projectId }: AddTaskModalProps) {
 
       if (error) throw error
 
-      await supabase.from('activity_feed').insert({
+      const { error: activityError } = await supabase.from('activity_feed').insert({
         project_id: projectId,
         user_id: userData.user.id,
         action: 'task_added',
         message: `Added task: ${title}`
       })
+      
+      if (activityError) {
+        console.error('Failed to log modal task activity:', activityError)
+      }
 
       toast.success('Task added successfully')
       setOpen(false)
@@ -101,6 +105,7 @@ export function AddTaskModal({ projectId }: AddTaskModalProps) {
       setDescription('')
       queryClient.invalidateQueries({ queryKey: ['projectTasks', projectId] })
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['activity', projectId] })
     } catch (error: any) {
       toast.error(error.message || 'Failed to add task')
     } finally {

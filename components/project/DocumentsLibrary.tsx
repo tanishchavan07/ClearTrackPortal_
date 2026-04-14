@@ -92,9 +92,21 @@ function FolderContent({ projectId, folder, isActive, isEditable }: { projectId:
         uploaded_by: userData.user.id
       })
       
+      const { error: activityError } = await supabase.from('activity_feed').insert({
+        project_id: projectId,
+        user_id: userData.user.id,
+        action: 'file_uploaded',
+        message: `Uploaded file to ${folder}: ${fileName}`
+      })
+      
+      if (activityError) {
+        console.error('Failed to log document upload activity:', activityError)
+      }
+      
       setProgress(100)
       toast.success('File uploaded')
       queryClient.invalidateQueries({ queryKey: ['files', projectId, folder] })
+      queryClient.invalidateQueries({ queryKey: ['activity', projectId] })
     } catch (err: any) {
       toast.error(err.message)
     } finally {

@@ -99,12 +99,16 @@ export function InlineAddTask({
       if (taskError) throw taskError
 
       // Log activity
-      await supabase.from('activity_feed').insert({
+      const { error: activityError } = await supabase.from('activity_feed').insert({
         project_id: projectId,
         user_id: userData.user.id,
         action: 'task_added',
         message: `Added task: ${title}`
       })
+      
+      if (activityError) {
+        console.error('Failed to log inline task activity:', activityError)
+      }
 
       toast.success('Task added')
       setTitle('')
@@ -115,6 +119,7 @@ export function InlineAddTask({
       // Refresh queries
       queryClient.invalidateQueries({ queryKey: ['tasks', milestoneId] })
       queryClient.invalidateQueries({ queryKey: ['projectTasks', projectId] })
+      queryClient.invalidateQueries({ queryKey: ['activity', projectId] })
       
       if (onSuccess) onSuccess()
     } catch (error: any) {

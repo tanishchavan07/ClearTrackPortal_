@@ -248,6 +248,9 @@ function InlineAddTask({ milestoneId, projectId }: { milestoneId: string, projec
     if (!title.trim()) return
     setLoading(true)
     try {
+      const { data: userData } = await supabase.auth.getUser()
+      if (!userData?.user) throw new Error('Not authenticated')
+
       const { error } = await supabase.from('tasks').insert({
         milestone_id: milestoneId,
         title: title.trim(),
@@ -255,11 +258,23 @@ function InlineAddTask({ milestoneId, projectId }: { milestoneId: string, projec
         description: ''
       })
       if (error) throw error
+
+      const { error: activityError } = await supabase.from('activity_feed').insert({
+        project_id: projectId,
+        user_id: userData.user.id,
+        action: 'task_added',
+        message: `Added task: ${title}`
+      })
+      if (activityError) {
+        console.error('Failed to log Overview inline task activity:', activityError)
+      }
+
       toast.success('Task added')
       setTitle('')
       setIsAdding(false)
       queryClient.invalidateQueries({ queryKey: ['projectTasks', projectId] })
       queryClient.invalidateQueries({ queryKey: ['tasks', milestoneId] })
+      queryClient.invalidateQueries({ queryKey: ['activity', projectId] })
     } catch (err: any) {
       toast.error(err.message)
     } finally {
