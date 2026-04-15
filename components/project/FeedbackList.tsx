@@ -62,7 +62,7 @@ export function FeedbackList({ projectId }: { projectId: string }) {
                 </span>
               </div>
               <p className="text-sm text-gray-600 leading-relaxed font-medium mt-1">
-                <span className="text-blue-600 font-bold">{item.subject}</span> • {item.message}
+                <span className="text-blue-600 font-bold">{item.subject ?? item.action ?? 'Feedback'}</span> • {item.message}
               </p>
             </div>
           </div>

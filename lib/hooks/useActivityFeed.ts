@@ -19,7 +19,7 @@ export function useActivityFeed(projectId: string) {
           )
         `)
         .eq('project_id', projectId)
-        .neq('action', 'feedback')
+        .neq('type', 'feedback')
         .order('created_at', { ascending: false })
         .limit(10)
         

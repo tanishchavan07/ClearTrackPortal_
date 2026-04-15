@@ -8,7 +8,7 @@ export function useFeedback(projectId: string) {
     queryKey: ['feedback', projectId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('feedback')
+        .from('activity_feed')
         .select(`
           *,
           user:users!user_id (
@@ -18,8 +18,9 @@ export function useFeedback(projectId: string) {
           )
         `)
         .eq('project_id', projectId)
+        .eq('type', 'feedback')
         .order('created_at', { ascending: false })
-        
+
       if (error) throw error
       return data as any[]
     },

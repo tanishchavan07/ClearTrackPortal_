@@ -43,6 +43,8 @@ export interface ActivityItem {
   project_id: string
   user_id: string
   action: string
+  type?: string
+  subject?: string
   message: string
   created_at: string
 }

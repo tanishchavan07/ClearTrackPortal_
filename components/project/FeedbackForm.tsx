@@ -46,11 +46,13 @@ export function FeedbackForm({ projectId }: { projectId: string }) {
         throw new Error('Only clients can submit feedback.')
       }
 
-      const { error } = await supabase.from('feedback').insert({
+      const { error } = await supabase.from('activity_feed').insert({
         project_id: projectId,
         user_id: userData.user.id,
-        subject: subject,
-        message: message
+        action: 'feedback',
+        type: 'feedback',
+        subject,
+        message,
       })
 
       if (error) throw error
