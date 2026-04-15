@@ -37,9 +37,8 @@ export function ErrorRedirectGuard() {
       // Strip the leading '#' and parse as URLSearchParams
       const params = new URLSearchParams(hash.slice(1))
       const errorCode = params.get('error_code')
-      const error = params.get('error')
 
-      if (errorCode || error === 'access_denied') {
+      if (errorCode === 'otp_expired') {
         router.replace('/session-expired')
       }
     }
