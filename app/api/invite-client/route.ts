@@ -3,13 +3,26 @@ import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
   try {
-    const { email, name } = await request.json()
+    const supabase = await createClient()
 
-    if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 })
+    // Check user authentication and role
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const supabase = await createClient()
+    // Only admin can invite clients
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profile?.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const { email, name } = await request.json()
 
     // 1. Send magic link OTP invite
     const { error: otpError } = await supabase.auth.signInWithOtp({

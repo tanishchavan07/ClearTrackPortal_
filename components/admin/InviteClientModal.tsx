@@ -17,13 +17,20 @@ import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { useUser } from '@/lib/hooks/useUser'
 
 export function InviteClientModal() {
   const router = useRouter()
+  const { data: user } = useUser()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
+
+  // Only render for admin users
+  if (user?.role !== 'admin') {
+    return null
+  }
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault()

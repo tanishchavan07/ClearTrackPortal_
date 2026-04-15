@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, Users, LogOut, Hexagon } from 'lucide-react'
+import { LayoutDashboard, Users, LogOut, Hexagon, UserPlus } from 'lucide-react'
 import { useUser } from '@/lib/hooks/useUser'
 import { supabase } from '@/lib/supabase/client'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -31,6 +31,11 @@ export function Sidebar() {
   const adminLinks = [
     { name: 'Admin Dashboard', href: '/admin', icon: LayoutDashboard },
     { name: 'Clients', href: '/admin/clients', icon: Users },
+    { name: 'Manage Members', href: '/admin/members', icon: UserPlus },
+  ]
+
+  const teamLinks = [
+    { name: 'Team Dashboard', href: '/admin', icon: LayoutDashboard },
   ]
 
   const userRole = user?.role?.toLowerCase()
@@ -40,8 +45,10 @@ export function Sidebar() {
   // render a skeleton instead of the wrong set of links.
   const navLinks =
     !isLoading && userRole
-      ? userRole === 'admin' || userRole === 'team'
+      ? userRole === 'admin'
         ? adminLinks
+        : userRole === 'team'
+        ? teamLinks
         : clientLinks
       : null
 

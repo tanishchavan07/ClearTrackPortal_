@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { Plus, Search, Filter } from 'lucide-react'
 import { format } from 'date-fns'
 import { useProjects } from '@/lib/hooks/useProjects'
+import { useUser } from '@/lib/hooks/useUser'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { StatusBadge, HealthBadge } from '@/components/dashboard/HealthBadge'
@@ -15,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 export default function AdminOverviewPage() {
   const router = useRouter()
   const { data: projects, isLoading } = useProjects()
+  const { data: user } = useUser()
   const [searchTerm, setSearchTerm] = useState('')
 
   const filteredProjects = projects?.filter(project =>
@@ -29,10 +31,12 @@ export default function AdminOverviewPage() {
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">All Projects</h1>
           <p className="text-gray-500 mt-1">Manage and monitor all client projects across the agency</p>
         </div>
-        <Link href="/admin/projects/new" className={buttonVariants({ variant: 'default', className: 'bg-blue-600 hover:bg-blue-700 w-full sm:w-auto' })}>
-          <Plus className="mr-2 h-4 w-4" />
-          Create Project
-        </Link>
+        {user?.role === 'admin' && (
+          <Link href="/admin/projects/new" className={buttonVariants({ variant: 'default', className: 'bg-blue-600 hover:bg-blue-700 w-full sm:w-auto' })}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Project
+          </Link>
+        )}
       </div>
 
       <div className="bg-white border md:rounded-xl shadow-sm border-gray-200 -mx-4 sm:mx-0 overflow-hidden">

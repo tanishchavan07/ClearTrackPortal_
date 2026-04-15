@@ -20,7 +20,8 @@ import {
   Zap,
   Info,
   ExternalLink,
-  Trash2
+  Trash2,
+  Send
 } from 'lucide-react'
 import { useUser } from '@/lib/hooks/useUser'
 import { supabase } from '@/lib/supabase/client'
@@ -129,6 +130,7 @@ export default function ProjectDetailPage() {
   const { data: user, isLoading: userLoading } = useUser()
   const [project, setProject] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [resending, setResending] = useState(false)
 
   const fetchProjectData = async () => {
     const { data, error } = await supabase
@@ -148,6 +150,26 @@ export default function ProjectDetailPage() {
       router.push('/')
     } else {
       setProject(data)
+    }
+  }
+
+  const handleResendInvite = async () => {
+    if (!project?.client_email) return
+    setResending(true)
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: project.client_email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: { name: project.client_name || '', role: 'client' }
+        }
+      })
+      if (error) throw error
+      toast.success(`Invite resent to ${project.client_email}`)
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to resend invite')
+    } finally {
+      setResending(false)
     }
   }
 
@@ -243,6 +265,21 @@ export default function ProjectDetailPage() {
              )}
              <ExportPDFButton project={project} />
           </div>
+          {user?.role === 'admin' && project?.client_email && (
+            <div className="mt-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm"
+                onClick={handleResendInvite}
+                disabled={resending}
+                className="text-blue-600 border-blue-100 hover:bg-blue-50 h-11 px-6 font-black uppercase text-[10px] tracking-widest rounded-2xl"
+              >
+                {resending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Send className="mr-2 h-3 w-3" />}
+                Resend Magic Link
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

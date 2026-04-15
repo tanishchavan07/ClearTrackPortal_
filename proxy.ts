@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   /**
    * IMPORTANT: `response` must be the object that cookies are set on AND
    * returned. Re-creating it inside setAll (old pattern) caused cookies to
@@ -44,7 +44,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   // ─── Unauthenticated users ──────────────────────────────────────────────
-  // RULE 4: Middleware only handles unauthenticated users → redirect to login.
+  // RULE 4: Proxy only handles unauthenticated users → redirect to login.
   // Role-based access control is handled entirely in layouts (server components).
   if (!user) {
     const isPublic =

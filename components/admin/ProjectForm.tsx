@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { Loader2, Mail, Send } from 'lucide-react'
+import { Loader2, Mail } from 'lucide-react'
 
 interface ProjectFormProps {
   initialData?: Project & { client_email?: string; client_name?: string }
@@ -22,7 +22,6 @@ interface ProjectFormProps {
 export function ProjectForm({ initialData, isEditing, onSuccess }: ProjectFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [resending, setResending] = useState(false)
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
     description: initialData?.description || '',
@@ -42,20 +41,6 @@ export function ProjectForm({ initialData, isEditing, onSuccess }: ProjectFormPr
       }
     })
     return { error }
-  }
-
-  const handleResendInvite = async () => {
-    if (!formData.clientEmail) return
-    setResending(true)
-    try {
-      const { error } = await sendInvite(formData.clientEmail, formData.clientName)
-      if (error) throw error
-      toast.success(`Invite resent to ${formData.clientEmail}`)
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to resend invite')
-    } finally {
-      setResending(false)
-    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -233,19 +218,6 @@ export function ProjectForm({ initialData, isEditing, onSuccess }: ProjectFormPr
                 />
               </div>
             </div>
-            {isEditing && (
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm"
-                onClick={handleResendInvite}
-                disabled={resending}
-                className="text-blue-600 border-blue-100 hover:bg-blue-50"
-              >
-                {resending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Send className="mr-2 h-3 w-3" />}
-                Resend Project Invite
-              </Button>
-            )}
             <p className="text-xs text-gray-400 mt-2 italic">
               Invitations use Magic Links. Your client will be added to the portal automatically when they log in.
             </p>
