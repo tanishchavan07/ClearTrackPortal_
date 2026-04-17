@@ -12,6 +12,11 @@ export interface Project {
   name: string
   description: string
   client_id: string
+  client?: {
+    id: string
+    email: string
+    name: string
+  }
   status: 'planning' | 'active' | 'completed' | 'on-hold'
   progress: number
   health: 'green' | 'yellow' | 'red'

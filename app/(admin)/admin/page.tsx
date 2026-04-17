@@ -87,7 +87,7 @@ export default function AdminOverviewPage() {
                       {project.name}
                     </td>
                     <td className="px-6 py-4 text-gray-500 truncate max-w-[150px]">
-                      {project.client_id}
+                      {project.client?.email || project.client_id}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-2">
